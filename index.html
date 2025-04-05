@@ -1,10 +1,38 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Hello World</title>
-  </head>
-  <body>
-    <h1>Hello World!</h1>
-    <p>Hosted on AWS Amplify.</p>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Urban Style Living - Driver Portal</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 50px;
+      background-color: #f8f4f0;
+      color: #333;
+    }
+    h1 {
+      color: #5c4033;
+    }
+    .upload-btn {
+      padding: 10px 20px;
+      background-color: #8b5e3c;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .upload-btn:hover {
+      background-color: #6e472b;
+    }
+  </style>
+</head>
+<body>
+  <h1>Hello World! 👋</h1>
+  <p>Welcome to the driver portal for Urban Style Living.</p>
+
+  <input type="file" id="fileInput" style="display:none" />
+  <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Upload File</button>
+</body>
 </html>
