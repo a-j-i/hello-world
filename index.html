@@ -1,89 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>S3 File Uploader</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-    .upload-container { border: 2px dashed #ccc; padding: 20px; text-align: center; }
-    #status { margin-top: 15px; color: green; }
-    .error { color: red; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File</title>
 </head>
 <body>
-  <div class="upload-container">
-    <h2>Upload File to S3</h2>
-    <input type="file" id="fileInput">
+    <h1>Upload a File to S3</h1>
+    <input type="file" id="fileInput" />
     <button onclick="uploadFile()">Upload</button>
-    <div id="status"></div>
-  </div>
 
-  <script>
-    async function uploadFile() {
-      const fileInput = document.getElementById('fileInput');
-      const statusDiv = document.getElementById('status');
-      statusDiv.innerHTML = '';
-      statusDiv.className = '';
+    <script>
+        // Function to upload the file
+        async function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0];
 
-      if (!fileInput.files.length) {
-        showStatus('Please select a file first!', 'error');
-        return;
-      }
+            if (!file) {
+                alert("Please choose a file to upload.");
+                return;
+            }
 
-      const file = fileInput.files[0];
-      showStatus('Generating upload URL...');
+            try {
+                // Fetch presigned URL from your backend API
+                const response = await fetch("https://iil8njbabl.execute-api.ap-southeast-2.amazonaws.com/prod/upload?filename=" + file.name);
+                const data = await response.json();
 
-      try {
-        // 1. Get pre-signed URL from your Lambda
-        const response = await fetch(
-          'https://8n4qwlw0qf.execute-api.ap-southeast-2.amazonaws.com/dev',
-          {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              // Add this if your API requires CORS:
-              'Origin': window.location.origin
-            },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType: file.type || 'application/octet-stream'
-            })
-          }
-        );
+                if (!data.url) {
+                    throw new Error("Failed to get presigned URL");
+                }
 
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`API Error: ${error}`);
+                // Upload the file to S3 using the presigned URL
+                const uploadResponse = await fetch(data.url, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/octet-stream"  // You can change this based on your file type
+                    },
+                    body: file
+                });
+
+                if (uploadResponse.ok) {
+                    alert("File uploaded successfully!");
+                } else {
+                    throw new Error("Failed to upload the file");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert(error.message);
+            }
         }
-
-        const { uploadURL } = await response.json();
-        showStatus('Uploading file to S3...');
-
-        // 2. Upload directly to S3
-        const uploadResponse = await fetch(uploadURL, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': file.type || 'application/octet-stream'
-          },
-          body: file
-        });
-
-        if (uploadResponse.ok) {
-          showStatus('File uploaded successfully!');
-        } else {
-          const s3Error = await uploadResponse.text();
-          throw new Error(`S3 Upload Failed: ${s3Error}`);
-        }
-      } catch (error) {
-        showStatus(`Error: ${error.message}`, 'error');
-        console.error('Upload error:', error);
-      }
-    }
-
-    function showStatus(message, type = '') {
-      const statusDiv = document.getElementById('status');
-      statusDiv.textContent = message;
-      statusDiv.className = type;
-    }
-  </script>
+    </script>
 </body>
 </html>
