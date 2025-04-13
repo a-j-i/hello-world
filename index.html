@@ -2,10 +2,8 @@
 <html>
 <head>
     <title>Cognito Login Test</title>
-    <!-- Load Amplify from CDN with proper integrity check -->
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.10/dist/aws-amplify.min.js"
-            integrity="sha384-9i6VgG+JQ2Qy0JkR0Qy0YFQ2Z9zU11fFz7OqX9L+5nw5Z5g5f5f5f5f5f5f5f5f5"
-            crossorigin="anonymous"></script>
+    <!-- Load AWS Amplify v5 -->
+    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
 </head>
 <body>
     <div>
@@ -21,7 +19,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Configure Amplify
             try {
-                window.amplifyConfig = {
+                // For AWS Amplify v5
+                const amplifyConfig = {
                     Auth: {
                         region: 'ap-southeast-2', // Replace with your region
                         userPoolId: 'ap-southeast-2_yJYKaxRIy', // Replace with your user pool ID
@@ -29,10 +28,12 @@
                     }
                 };
                 
-                Amplify.configure(window.amplifyConfig);
+                AWS.Amplify.configure(amplifyConfig);
                 
                 // Set up login button
                 document.getElementById('loginBtn').addEventListener('click', signIn);
+                
+                console.log("Amplify configured successfully");
                 
             } catch (configError) {
                 document.getElementById('message').textContent = "Failed to initialize authentication";
@@ -49,7 +50,7 @@
             messageEl.style.color = "black";
 
             try {
-                const user = await Amplify.Auth.signIn(username, password);
+                const user = await AWS.Amplify.Auth.signIn(username, password);
                 messageEl.textContent = `Success! Welcome ${user.username}`;
                 messageEl.style.color = "green";
                 console.log("Authenticated user:", user);
