@@ -3,50 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.0.4/dist/aws-amplify.min.js"></script>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    .hidden { display: none; }
-  </style>
+  <title>Login Page</title>
+  <script src="https://unpkg.com/aws-amplify@5.0.4/dist/aws-amplify.min.js"></script>
 </head>
 <body>
-  <h1>Welcome</h1>
+  <h1>Welcome to the Portal</h1>
 
-  <div id="login-section">
+  <div id="auth-section">
     <button onclick="signIn()">Login</button>
-  </div>
-
-  <div id="dashboard" class="hidden">
-    <p id="role-label"></p>
-    <div id="upload-section" class="hidden">
-      <h3>Upload File to S3</h3>
-      <input type="file" id="fileInput" />
-      <button onclick="uploadFile()">Upload</button>
-    </div>
-    <h3>Your Jobs</h3>
-    <ul id="jobs-list"></ul>
     <button onclick="signOut()">Logout</button>
   </div>
 
-  <script>
-    const Amplify = aws_amplify.Amplify;
-    const Auth = aws_amplify.Auth;
+  <div id="user-info" style="display:none;">
+    <h2 id="user-email"></h2>
+  </div>
 
+  <script>
+    const { Auth } = window.Amplify;
+
+    // ✅ Amplify configuration
     Amplify.configure({
       Auth: {
-        region: 'ap-southeast-2',
+        region: 'ap-southeast-2', // or your region
         userPoolId: 'ap-southeast-2_yJYKaxRIy',
         userPoolWebClientId: '5e6bndcs0tvos87fndb63urr92',
-        mandatorySignIn: true,
+        oauth: {
+          domain: 'https://ap-southeast-2yjykaxriy.auth.ap-southeast-2.amazoncognito.com',
+          scope: ['email', 'openid'],
+          redirectSignIn: window.location.href,
+          redirectSignOut: window.location.href,
+          responseType: 'token',
+        },
       }
     });
 
     async function signIn() {
       try {
-        await Auth.federatedSignIn(); // Opens Cognito hosted UI
-      } catch (error) {
-        alert("Login error: " + error.message);
+        await Auth.federatedSignIn(); // redirects to Cognito login
+      } catch (err) {
+        console.error("Login error:", err);
       }
     }
 
@@ -55,73 +50,16 @@
       location.reload();
     }
 
-    async function checkUser() {
+    // ✅ Check login status and show user email
+    window.onload = async () => {
       try {
         const user = await Auth.currentAuthenticatedUser();
-        const token = user.signInUserSession.idToken.jwtToken;
-        const groups = user.signInUserSession.idToken.payload['cognito:groups'] || [];
-        const role = groups.includes('owner') ? 'owner' : 'driver';
-
-        document.getElementById('login-section').classList.add('hidden');
-        document.getElementById('dashboard').classList.remove('hidden');
-        document.getElementById('role-label').innerText = "Logged in as: " + role;
-
-        if (role === 'owner') {
-          document.getElementById('upload-section').classList.remove('hidden');
-        }
-
-        const jobsRes = await fetch(`https://38suwmuf43.execute-api.ap-southeast-2.amazonaws.com/prod?role=${role}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const jobs = await jobsRes.json();
-        const jobsList = document.getElementById('jobs-list');
-        jobsList.innerHTML = "";
-        jobs.forEach(job => {
-          const li = document.createElement('li');
-          li.innerText = JSON.stringify(job);
-          jobsList.appendChild(li);
-        });
-
-        // Store for upload later
-        window.currentToken = token;
-
-      } catch (error) {
-        console.log("User not logged in:", error);
+        document.getElementById("user-info").style.display = "block";
+        document.getElementById("user-email").innerText = `Logged in as: ${user.attributes.email}`;
+      } catch {
+        console.log("User not logged in");
       }
-    }
-
-    async function uploadFile() {
-      const file = document.getElementById("fileInput").files[0];
-      if (!file) {
-        alert("Choose a file.");
-        return;
-      }
-
-      try {
-        const presignedRes = await fetch(`https://iil8njbabl.execute-api.ap-southeast-2.amazonaws.com/prod?filename=${file.name}`, {
-          headers: { Authorization: `Bearer ${window.currentToken}` }
-        });
-        const data = await presignedRes.json();
-        if (!data.url) throw new Error("No presigned URL returned");
-
-        const uploadRes = await fetch(data.url, {
-          method: "PUT",
-          headers: { "Content-Type": "application/octet-stream" },
-          body: file
-        });
-
-        if (uploadRes.ok) {
-          alert("Uploaded successfully!");
-        } else {
-          throw new Error("Upload failed");
-        }
-      } catch (e) {
-        alert("Upload error: " + e.message);
-      }
-    }
-
-    // On load
-    checkUser();
+    };
   </script>
 </body>
 </html>
