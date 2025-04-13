@@ -1,65 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login Page</title>
-  <script src="https://unpkg.com/aws-amplify@5.0.4/dist/aws-amplify.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Portal Login</title>
+  <script src="https://unpkg.com/aws-amplify@5.3.10/dist/aws-amplify.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      color: #333;
+    }
+    .auth-container {
+      background: #f8f9fa;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    button:disabled {
+      background-color: #9ca3af;
+      cursor: not-allowed;
+    }
+    .user-info {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: #eef2ff;
+      border-radius: 8px;
+    }
+    .error {
+      color: #dc2626;
+      margin-top: 1rem;
+    }
+    .loading {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <h1>Welcome to the Portal</h1>
-
-  <div id="auth-section">
-    <button onclick="signIn()">Login</button>
-    <button onclick="signOut()">Logout</button>
-  </div>
-
-  <div id="user-info" style="display:none;">
-    <h2 id="user-email"></h2>
+  <div class="auth-container">
+    <h1>Welcome to Secure Portal</h1>
+    
+    <div id="auth-state">
+      <!-- Dynamically populated based on auth status -->
+    </div>
+    
+    <div id="error-message" class="error" style="display: none;"></div>
   </div>
 
   <script>
-    const { Auth } = window.Amplify;
+    // Global state
+    const authState = {
+      isInitialized: false,
+      isLoading: true,
+      isAuthenticated: false,
+      user: null
+    };
 
-    // ✅ Amplify configuration
-    Amplify.configure({
-      Auth: {
-        region: 'ap-southeast-2', // or your region
-        userPoolId: 'ap-southeast-2_yJYKaxRIy',
-        userPoolWebClientId: '5e6bndcs0tvos87fndb63urr92',
-        oauth: {
-          domain: 'https://ap-southeast-2yjykaxriy.auth.ap-southeast-2.amazoncognito.com',
-          scope: ['email', 'openid'],
-          redirectSignIn: window.location.href,
-          redirectSignOut: window.location.href,
-          responseType: 'token',
-        },
-      }
-    });
+    // DOM Elements
+    const authStateElement = document.getElementById('auth-state');
+    const errorElement = document.getElementById('error-message');
 
-    async function signIn() {
+    // Initialize the application
+    async function initApp() {
       try {
-        await Auth.federatedSignIn(); // redirects to Cognito login
-      } catch (err) {
-        console.error("Login error:", err);
+        // Configure Amplify
+        Amplify.configure({
+          Auth: {
+            region: 'ap-southeast-2',
+            userPoolId: 'ap-southeast-2_yJYKaxRIy',
+            userPoolWebClientId: '5e6bndcs0tvos87fndb63urr92',
+            oauth: {
+              domain: 'https://ap-southeast-2yjykaxriy.auth.ap-southeast-2.amazoncognito.com',
+              scope: ['email', 'openid', 'profile'],
+              redirectSignIn: window.location.origin,
+              redirectSignOut: window.location.origin,
+              responseType: 'code',
+            },
+          }
+        });
+
+        // Check auth status
+        await checkAuth();
+        
+        authState.isInitialized = true;
+        authState.isLoading = false;
+        renderUI();
+        
+      } catch (error) {
+        showError('Failed to initialize application. Please refresh the page.');
+        console.error('Initialization error:', error);
       }
     }
 
-    async function signOut() {
-      await Auth.signOut();
-      location.reload();
-    }
-
-    // ✅ Check login status and show user email
-    window.onload = async () => {
+    // Check authentication status
+    async function checkAuth() {
       try {
         const user = await Auth.currentAuthenticatedUser();
-        document.getElementById("user-info").style.display = "block";
-        document.getElementById("user-email").innerText = `Logged in as: ${user.attributes.email}`;
+        authState.isAuthenticated = true;
+        authState.user = user;
       } catch {
-        console.log("User not logged in");
+        authState.isAuthenticated = false;
+        authState.user = null;
       }
-    };
+    }
+
+    // Handle login
+    async function handleLogin() {
+      try {
+        authState.isLoading = true;
+        renderUI();
+        
+        await Auth.federatedSignIn();
+      } catch (error) {
+        showError('Login failed. Please try again.');
+        console.error('Login error:', error);
+        authState.isLoading = false;
+        renderUI();
+      }
+    }
+
+    // Handle logout
+    async function handleLogout() {
+      try {
+        authState.isLoading = true;
+        renderUI();
+        
+        await Auth.signOut();
+        await checkAuth();
+        
+        authState.isLoading = false;
+        renderUI();
+      } catch (error) {
+        showError('Logout failed. Please try again.');
+        console.error('Logout error:', error);
+        authState.isLoading = false;
+        renderUI();
+      }
+    }
+
+    // Show error message
+    function showError(message) {
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+      setTimeout(() => {
+        errorElement.style.display = 'none';
+      }, 5000);
+    }
+
+    // Render UI based on auth state
+    function renderUI() {
+      if (authState.isLoading) {
+        authStateElement.innerHTML = `
+          <div class="loading-state">
+            <button disabled>
+              <span class="loading"></span> Loading...
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      if (authState.isAuthenticated) {
+        authStateElement.innerHTML = `
+          <div class="user-info">
+            <p>Welcome, ${authState.user.attributes.email}</p>
+            <button id="logout-btn">Logout</button>
+          </div>
+        `;
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+      } else {
+        authStateElement.innerHTML = `
+          <div class="login-prompt">
+            <button id="login-btn">Login with Cognito</button>
+          </div>
+        `;
+        document.getElementById('login-btn').addEventListener('click', handleLogin);
+      }
+    }
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
 </body>
 </html>
