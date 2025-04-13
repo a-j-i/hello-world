@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Cognito Login Test</title>
-    <!-- Load AWS Amplify v5 -->
+    <!-- Load AWS Amplify from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
 </head>
 <body>
@@ -17,18 +17,27 @@
     <script>
         // Wait for Amplify to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
+            // Add a check to make sure the library is loaded
+            if (typeof aws_amplify === 'undefined') {
+                document.getElementById('message').textContent = "Failed to load AWS Amplify library";
+                console.error("AWS Amplify library not loaded");
+                return;
+            }
+
             // Configure Amplify
             try {
-                // For AWS Amplify v5
-                const amplifyConfig = {
-                    Auth: {
-                        region: 'ap-southeast-2', // Replace with your region
-                        userPoolId: 'ap-southeast-2_yJYKaxRIy', // Replace with your user pool ID
-                        userPoolWebClientId: '5e6bndcs0tvos87fndb63urr92' // Replace with your client ID
-                    }
-                };
+                const { Amplify } = aws_amplify;
                 
-                AWS.Amplify.configure(amplifyConfig);
+                // Store in window for access in other functions
+                window.amplify = aws_amplify;
+                
+                Amplify.configure({
+                    Auth: {
+                        region: 'ap-southeast-2',
+                        userPoolId: 'ap-southeast-2_yJYKaxRIy',
+                        userPoolWebClientId: '5e6bndcs0tvos87fndb63urr92'
+                    }
+                });
                 
                 // Set up login button
                 document.getElementById('loginBtn').addEventListener('click', signIn);
@@ -46,11 +55,18 @@
             const password = document.getElementById('password').value;
             const messageEl = document.getElementById('message');
             
+            if (!username || !password) {
+                messageEl.textContent = "Please enter username and password";
+                messageEl.style.color = "red";
+                return;
+            }
+            
             messageEl.textContent = "Signing in...";
             messageEl.style.color = "black";
 
             try {
-                const user = await AWS.Amplify.Auth.signIn(username, password);
+                const { Auth } = window.amplify;
+                const user = await Auth.signIn(username, password);
                 messageEl.textContent = `Success! Welcome ${user.username}`;
                 messageEl.style.color = "green";
                 console.log("Authenticated user:", user);
