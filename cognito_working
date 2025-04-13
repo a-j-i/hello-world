@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cognito Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.2.0/dist/amazon-cognito-identity.min.js"></script>
+</head>
+<body>
+  <h2>Cognito Login</h2>
+
+  <!-- Login Form -->
+  <div id="loginForm">
+    <input id="email" type="email" placeholder="Email"><br><br>
+    <input id="password" type="password" placeholder="Password"><br><br>
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- New Password Form -->
+  <div id="newPasswordForm" style="display:none;">
+    <p>New password required</p>
+    <input id="newPassword" type="password" placeholder="New Password"><br><br>
+    <button onclick="submitNewPassword()">Submit New Password</button>
+  </div>
+
+  <p id="message"></p>
+
+  <script>
+    const poolData = {
+      UserPoolId: 'ap-southeast-2_6cbsxULN7',
+      ClientId: '4dulbnkvuuo6tf6092qfvvfssd'
+    };
+
+    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+    let cognitoUserGlobal;  // hold user reference globally for new password step
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+        Username: email,
+        Password: password
+      });
+
+      const cognitoUser = new AmazonCognitoIdentity.CognitoUser({
+        Username: email,
+        Pool: userPool
+      });
+
+      cognitoUser.authenticateUser(authDetails, {
+        onSuccess: function (result) {
+          const accessToken = result.getAccessToken().getJwtToken();
+          document.getElementById("message").innerText = "Login successful!";
+          console.log("Access Token:", accessToken);
+        },
+        onFailure: function (err) {
+          document.getElementById("message").innerText = err.message || JSON.stringify(err);
+        },
+        newPasswordRequired: function (userAttributes) {
+          cognitoUserGlobal = cognitoUser;
+          delete userAttributes.email_verified;
+          delete userAttributes.phone_number_verified;
+
+          // Show new password form
+          document.getElementById("loginForm").style.display = "none";
+          document.getElementById("newPasswordForm").style.display = "block";
+        }
+      });
+    }
+
+    function submitNewPassword() {
+      const newPassword = document.getElementById("newPassword").value;
+      cognitoUserGlobal.completeNewPasswordChallenge(newPassword, {}, {
+        onSuccess: function (result) {
+          const accessToken = result.getAccessToken().getJwtToken();
+          document.getElementById("message").innerText = "Password updated. Login successful!";
+          console.log("Access Token:", accessToken);
+
+          // Hide form
+          document.getElementById("newPasswordForm").style.display = "none";
+        },
+        onFailure: function (err) {
+          document.getElementById("message").innerText = err.message || JSON.stringify(err);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
