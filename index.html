@@ -1,81 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Cognito Login Test</title>
-    <!-- Load AWS Amplify from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@5.3.11/dist/aws-amplify.min.js"></script>
+  <title>Cognito Login</title>
 </head>
 <body>
-    <div>
-        <h2>Login Test</h2>
-        <input id="username" type="text" placeholder="Username">
-        <input id="password" type="password" placeholder="Password">
-        <button id="loginBtn">Sign In</button>
-        <p id="message"></p>
-    </div>
+  <h2>Login</h2>
+  <input id="email" type="email" placeholder="Email"><br><br>
+  <input id="password" type="password" placeholder="Password"><br><br>
+  <button onclick="login()">Login</button>
 
-    <script>
-        // Wait for Amplify to be fully loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add a check to make sure the library is loaded
-            if (typeof aws_amplify === 'undefined') {
-                document.getElementById('message').textContent = "Failed to load AWS Amplify library";
-                console.error("AWS Amplify library not loaded");
-                return;
-            }
+  <p id="message"></p>
 
-            // Configure Amplify
-            try {
-                const { Amplify } = aws_amplify;
-                
-                // Store in window for access in other functions
-                window.amplify = aws_amplify;
-                
-                Amplify.configure({
-                    Auth: {
-                        region: 'ap-southeast-2',
-                        userPoolId: 'ap-southeast-2_yJYKaxRIy',
-                        userPoolWebClientId: '5e6bndcs0tvos87fndb63urr92'
-                    }
-                });
-                
-                // Set up login button
-                document.getElementById('loginBtn').addEventListener('click', signIn);
-                
-                console.log("Amplify configured successfully");
-                
-            } catch (configError) {
-                document.getElementById('message').textContent = "Failed to initialize authentication";
-                console.error("Configuration error:", configError);
-            }
-        });
+  <!-- Amazon Cognito Identity SDK -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.2.0/amazon-cognito-identity.min.js"></script>
+  <script>
+    const poolData = {
+      UserPoolId: 'ap-southeast-2_6cbsxULN7',
+      ClientId: '4dulbnkvuuo6tf6092qfvvfssd'
+    };
 
-        async function signIn() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const messageEl = document.getElementById('message');
-            
-            if (!username || !password) {
-                messageEl.textContent = "Please enter username and password";
-                messageEl.style.color = "red";
-                return;
-            }
-            
-            messageEl.textContent = "Signing in...";
-            messageEl.style.color = "black";
+    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
-            try {
-                const { Auth } = window.amplify;
-                const user = await Auth.signIn(username, password);
-                messageEl.textContent = `Success! Welcome ${user.username}`;
-                messageEl.style.color = "green";
-                console.log("Authenticated user:", user);
-            } catch (error) {
-                messageEl.textContent = `Error: ${error.message}`;
-                messageEl.style.color = "red";
-                console.error("Login error:", error);
-            }
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const authData = {
+        Username: email,
+        Password: password
+      };
+
+      const authDetails = new AmazonCognitoIdentity.AuthenticationDetails(authData);
+
+      const userData = {
+        Username: email,
+        Pool: userPool
+      };
+
+      const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+      cognitoUser.authenticateUser(authDetails, {
+        onSuccess: function (result) {
+          const accessToken = result.getAccessToken().getJwtToken();
+          const idToken = result.getIdToken().getJwtToken();
+          const refreshToken = result.getRefreshToken().getToken();
+
+          document.getElementById("message").innerText = "Login successful!";
+          console.log("Access Token:", accessToken);
+          console.log("ID Token:", idToken);
+          console.log("Refresh Token:", refreshToken);
+
+          // TODO: Store tokens or redirect as needed
+        },
+        onFailure: function (err) {
+          document.getElementById("message").innerText = err.message || JSON.stringify(err);
         }
-    </script>
+      });
+    }
+  </script>
 </body>
 </html>
